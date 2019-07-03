@@ -45,17 +45,17 @@ class ServerWidget(Button):
             self._start_process()
         elif self.description == "Stopping...":
             self.description = "Terminating..."
-            self.process.terminate()
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         elif self.description == "Terminating...":
             self.description = "Killing..."
-            self.process.kill()
+            os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
         else:
             self.description = "Stopping..."
             self.button_style = "danger"
-            self.process.send_signal(signal.SIGINT)
+            os.killpg(os.getpgid(self.process.pid), signal.SIGINT)
 
     def _start_process(self):
-        self.process = Popen(self.cmd, shell=True, stdout=PIPE, stderr=PIPE)
+        self.process = Popen(self.cmd, shell=True, stdout=PIPE, stderr=PIPE, preexec_fn=os.setsid)
 
         self.description = "{} {}".format(self.process.pid, self.cmd)
         self.button_style="warning"
@@ -79,15 +79,15 @@ class ServerWidget(Button):
             try:
                 if self.process.poll() is None:
                     os.write(STDOUT, "Stopping [{}: {}]\n".format(self.process.pid, self.cmd))
-                    self.process.send_signal(signal.SIGINT)
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGINT)
                     time.sleep(0.1)
                 if self.process.poll() is None:
                     os.write(STDOUT, "Terminating [{}: {}]\n".format(self.process.pid, self.cmd))
-                    self.process.terminate()
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
                     time.sleep(0.1)
                 if self.process.poll() is None:
                     os.write(STDOUT, "Killing [{}: {}]\n".format(self.process.pid, self.cmd))
-                    self.process.kill()
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
                     time.sleep(0.1)
                 if self.process.poll() is None:
                     os.write(STDERR, "Couldn't kill [{}: {}]\n".format(self.process.pid, self.cmd))

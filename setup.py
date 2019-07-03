@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="jupyter-server-widget",
-    version='0.1.0',
+    version='0.1.1',
     url='https://github.com/srizzo/jupyter-server-widget',
     author="Samuel Rizzo",
     author_email='rizzolabs@gmail.com',
