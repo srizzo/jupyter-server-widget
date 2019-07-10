@@ -1,11 +1,12 @@
-from ipywidgets import Button
 import threading
 import time
-from subprocess import Popen, PIPE
 import os
 import signal
 import atexit
 import sys
+from ipywidgets import Button
+from IPython.utils import py3compat
+from subprocess import Popen, PIPE
 
 STDOUT, STDERR = 1, 2
 
@@ -17,19 +18,22 @@ class ServerWidget(Button):
         self.button_style = "success"
         self.on_click(callback=self._on_click_handler)
 
+    def _write_to_console(self, fd, string):
+        os.write(fd, py3compat.str_to_bytes(string, encoding = 'utf-8'))
+
     def _forward_process_stdout(self, process, cmd):
         while True:
             output = process.stdout.readline()
             if output == b"" or process.poll() is not None:
                 break
-            os.write(STDOUT, "[{} {}] {}".format(process.pid, cmd, output))
+            self._write_to_console(STDOUT, "[{} {}] {}\n".format(process.pid, cmd, output))
 
     def _forward_process_stderr(self, process, cmd):
         while True:
             output = process.stderr.readline()
             if output == b"" or process.poll() is not None:
                 break
-            os.write(STDERR, "[{} {}] {}".format(process.pid, cmd, output))
+            self._write_to_console(STDERR, "[{} {}] {}\n".format(process.pid, cmd, output))
 
     def _check_proccess_status(self, process):
         while process.poll() is None:
@@ -78,22 +82,22 @@ class ServerWidget(Button):
         def atexit_hook():
             try:
                 if self.process.poll() is None:
-                    os.write(STDOUT, "Stopping [{}: {}]\n".format(self.process.pid, self.cmd))
+                    self._write_to_console(STDOUT, "Stopping [{}: {}]\n".format(self.process.pid, self.cmd))
                     os.killpg(os.getpgid(self.process.pid), signal.SIGINT)
                     time.sleep(0.1)
                 if self.process.poll() is None:
-                    os.write(STDOUT, "Terminating [{}: {}]\n".format(self.process.pid, self.cmd))
+                    self._write_to_console(STDOUT, "Terminating [{}: {}]\n".format(self.process.pid, self.cmd))
                     os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
                     time.sleep(0.1)
                 if self.process.poll() is None:
-                    os.write(STDOUT, "Killing [{}: {}]\n".format(self.process.pid, self.cmd))
+                    self._write_to_console(STDOUT, "Killing [{}: {}]\n".format(self.process.pid, self.cmd))
                     os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
                     time.sleep(0.1)
                 if self.process.poll() is None:
-                    os.write(STDERR, "Couldn't kill [{}: {}]\n".format(self.process.pid, self.cmd))
+                    self._write_to_console(STDERR, "Couldn't kill [{}: {}]\n".format(self.process.pid, self.cmd))
             except OSError:
                 pass
             except Exception as e:
-                os.write("Error while terminating subprocess (pid=%i): %s\n" % (self.process.pid, e))
+                self._write_to_console("Error while terminating subprocess (pid=%i): %s\n" % (self.process.pid, e))
 
         atexit.register(atexit_hook)
